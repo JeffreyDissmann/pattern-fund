@@ -97,7 +97,10 @@ classdef Stock < handle
             Beta = trailingFunCombineFinTS(MarketStockTS.Return,this.DailypTS.Return,@tsBeta,60,'Beta_60Day');
             
             %calculate Beta adjusted Return
-            BetaAdjustedReturn = this.DailyFinTS.Return((end-length(Beta.Beta_60Day)+1):end) - (fts2mat(lagts(Beta.Beta_60Day,1)) .* fts2mat(MarketStock.DailyFinTS.Return((end-length(Beta.Beta_60Day)+1):end)) );
+            BetaAdjustedReturn = this.DailypTS.Return - (Beta .* MarketStockTS.Return);
+            BetaAdjustedReturn = this.DailypTS.Return((end-length(Beta.Beta_60Day)+1):end) - (fts2mat(lagts(Beta.Beta_60Day,1)) .* fts2mat(MarketStock.DailyFinTS.Return((end-length(Beta.Beta_60Day)+1):end)) );
+            
+            
             BetaAdjustedReturn = chfield(BetaAdjustedReturn,'Return','BetaAdjustedReturn');
             
             %Std

@@ -27,14 +27,18 @@ nStocks = length(MyStocks);
 
 
 %Reduce time points
-DAX.convertYahooDailyData2timeseries();   
+DAX.convertYahooDailyData2timeseries();
+
+
 for i = 1:nStocks
     MyStocks(i).reduceNoVolumeDaysFromYahooDailyData();
-    MyStocks(i).convertYahooDailyData2timeseries();   
-    MyStocks(i).calculateIndicators(DAX.DailypTS)
+    MyStocks(i).convertYahooDailyData2timeseries(); 
 end
 
-
+  
+MyStocks(1).calculateIndicators(DAX.DailypTS)
+    
+    
 
 %Train models
 for i = 1:nStocks

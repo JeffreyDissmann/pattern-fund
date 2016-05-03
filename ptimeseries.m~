@@ -98,9 +98,39 @@ classdef ptimeseries
             end
         end
         
-        function A = minus(A,B)                
-            for i = 3:length(A.myData.Properties.VariableNames)
-                A.myData.(A.myData.Properties.VariableNames{i}) = A.myData.(A.myData.Properties.VariableNames{i}) - B;
+        function A = minus(A,B)
+            if isnumeric(B)
+                for i = 3:length(A.myData.Properties.VariableNames)
+                    A.myData.(A.myData.Properties.VariableNames{i}) = A.myData.(A.myData.Properties.VariableNames{i}) - B;
+                end
+            else
+                %Same number of variables
+                if ~(length(A.myData.Properties.VariableNames) == length(B.myData.Properties.VariableNames))
+                    error('');
+                end
+                
+                for i = 3:length(A.myData.Properties.VariableNames)
+                    A.myData.(A.myData.Properties.VariableNames{i}) = A.myData.(A.myData.Properties.VariableNames{i}) - B.myData.(A.myData.Properties.VariableNames{i});
+                end
+
+            end
+        end
+        
+        function A = times(A,B)
+            if isnumeric(B)
+%                 for i = 3:length(A.myData.Properties.VariableNames)
+%                     A.myData.(A.myData.Properties.VariableNames{i}) = A.myData.(A.myData.Properties.VariableNames{i}) - B;
+%                 end
+            else
+                %Same number of variables
+                if ~(length(A.myData.Properties.VariableNames) == length(B.myData.Properties.VariableNames))
+                    error('');
+                end
+                
+                for i = 3:length(A.myData.Properties.VariableNames)
+                    A.myData.(A.myData.Properties.VariableNames{i}) = A.myData.(A.myData.Properties.VariableNames{i}) .* B.myData.(B.myData.Properties.VariableNames{i});
+                end
+
             end
         end
         
@@ -129,11 +159,15 @@ classdef ptimeseries
             for md = missingdates'
                 this.myData = [this.myData;this.myData(end,:)];
                 this.myData.dates(end) = md;
-                this.myData.date_string(end,:) = datestr(md,'yyyy-mm-dd')
+                this.myData.date_string(end,:) = datestr(md,'yyyy-mm-dd');
+                this.myData(end,3:end) = num2cell(nan(1,size(this.myData,2)-2));
+                
             end
-            newdata = num2cell(nan(length(missingdates),size(this.myData,2)-2));
-            [this.myData;
-                table(missingdates,datestr(missingdates,'yyyy-mm-dd')),cell2table(newdata)]
+            
+            %sortby dates
+            %newes = 1, oldes = end
+            [~,I] = sort(this.myData.dates);
+            this.myData = this.myData(I,:);
             
         end
         
@@ -149,14 +183,21 @@ classdef ptimeseries
             end
             
             %calculate statistic
-            trailingTS = arrayfun(@(i) fun(...
-                                            A.subsref(substruct('()',{(i:i+interval-1)})),...
-                                            B.subsref(substruct('()',{(i:i+interval-1)}))),...
-                                            1:length(A)-interval )';
+            for i = interval:length(A)
+                A.myData(i,3:end)= num2cell(fun(pt2Mat(A.subsref(substruct('()',{(i-interval+1:i)}))),...
+                                        pt2Mat(B.subsref(substruct('()',{(i-interval+1:i)})))));
+            end
+            
+            %first interval-1 entries are nan
+            A.myData(1:interval-1,3:end) = num2cell(nan(size(A.myData(1:interval-1,3:end))));
 
-%             %form ts
-%             trailingTS = fints(ts1.dates(interval:end), trailingTS, {name}, ts1.freq);
+            %change name
+            A.myData.Properties.VariableNames{3:end} = name;
 
+        end
+        
+        function M = pt2Mat(this)
+            M = table2array(this.myData(:,3:end));
         end
     end
     
