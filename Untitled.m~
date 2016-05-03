@@ -1,0 +1,44 @@
+clc;
+clear;
+
+%http://www.financialwisdomforum.org/gummy-stuff/Yahoo-data.htm
+load('yahoodata.mat');
+
+startDate = datenum('1-1-2010','dd-mm-yyyy');
+endDate = datenum('31-03-2016','dd-mm-yyyy');
+
+nStocks = length(ticker);
+MyStocks = Stock.empty(nStocks,0);
+
+for i = 1:nStocks
+    MyStocks(i) = Stock(ticker{i},data{i});
+end
+
+%Remove young stocks from sample
+MyStocks(30) = [];
+nStocks = length(MyStocks);
+
+%First Entry is Dax
+DAX = MyStocks(1);
+
+%Reduce time points
+dates = datenum(DAX.YahooDailyData.Date,'yyyy-mm-dd');
+dates = dates(DAX.YahooDailyData.Volume > 0);
+dates = dates(dates >= startDate);
+
+for i = 1:nStocks
+    MyStocks(i).reduceDatesOfYahooDailyData(dates);
+    MyStocks(i).convertYahooDailyData2fints();
+    
+    MyStocks(i).calculateIndicators(DAX)
+    
+end
+
+
+
+%Train models
+for i = 1:nStocks
+    MyStocks(i).trainClassifier(datenum('2014-12-31'));
+end
+
+
