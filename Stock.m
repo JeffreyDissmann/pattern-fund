@@ -5,8 +5,8 @@ classdef Stock < handle
     properties
         ticker = '';
         YahooDailyData = table();
-        DailypTS = timeseries();
-        DailyFinTSIndicator = timeseries();
+        DailypTS = ptimeseries();
+        DailypTSIndicator = ptimeseries();
         trainedClassifier = [];
     end
     
@@ -83,7 +83,7 @@ classdef Stock < handle
                                 
             %calculate Return
             Return = (this.DailypTS.AdjClose ./ lag(this.DailypTS.AdjClose,1)) - 1;
-            Return = chfield(Return,'AdjClose','Return');
+            Return = chVarName(Return,'AdjClose','Return');
             this.DailypTS = combineTS(this.DailypTS, Return);
             
         end 
@@ -97,43 +97,42 @@ classdef Stock < handle
             Beta = trailingFunCombineFinTS(MarketStockTS.Return,this.DailypTS.Return,@tsBeta,60,'Beta_60Day');
             
             %calculate Beta adjusted Return
-            BetaAdjustedReturn = this.DailypTS.Return - (Beta .* MarketStockTS.Return);
-            BetaAdjustedReturn = this.DailypTS.Return((end-length(Beta.Beta_60Day)+1):end) - (fts2mat(lagts(Beta.Beta_60Day,1)) .* fts2mat(MarketStock.DailyFinTS.Return((end-length(Beta.Beta_60Day)+1):end)) );
-            
-            
-            BetaAdjustedReturn = chfield(BetaAdjustedReturn,'Return','BetaAdjustedReturn');
+            BetaAdjustedReturn = this.DailypTS.Return - (MarketStockTS.Return .* lag(Beta.Beta_60Day,1));
+            BetaAdjustedReturn = BetaAdjustedReturn.chVarName('Return','BetaAdjustedReturn');
             
             %Std
-            Std25Day = trailingFunFinTS(@std,BetaAdjustedReturn.BetaAdjustedReturn,25,'Std_25Day');
-            Std250Day = trailingFunFinTS(@std,BetaAdjustedReturn.BetaAdjustedReturn,250,'Std_250Day');
+            Std25Day = BetaAdjustedReturn.trailingFunpTS(@std,25,'Std_25Day');
+            Std250Day = BetaAdjustedReturn.trailingFunpTS(@std,250,'Std_250Day');
             
-            Indicator_Std = Std25Day((end-length(Std250Day)+1):end) ./ fts2mat(Std250Day);
-            Indicator_Std = chfield(Indicator_Std,'Std_25Day','Indicator_Std');
+            Indicator_Std = Std25Day ./ Std250Day;
+            Indicator_Std = Indicator_Std.chVarName('Std_25Day','Indicator_Std');
             
+            %normalised return
+            BetaAdjustedReturnNormalised = BetaAdjustedReturn ./ lag(Std25Day,1);
+            BetaAdjustedReturnNormalised = chVarName(BetaAdjustedReturnNormalised,'BetaAdjustedReturn','BetaAdjustedReturnNormalised');
+            
+            BetaAdjustedReturnNormalised_l1 = chVarName(lag(BetaAdjustedReturnNormalised,1),'BetaAdjustedReturnNormalised','BetaAdjustedReturnNormalised_l1');
+            BetaAdjustedReturnNormalised_l2 = chVarName(lag(BetaAdjustedReturnNormalised,2),'BetaAdjustedReturnNormalised','BetaAdjustedReturnNormalised_l2');
+            BetaAdjustedReturnNormalised_l3 = chVarName(lag(BetaAdjustedReturnNormalised,3),'BetaAdjustedReturnNormalised','BetaAdjustedReturnNormalised_l3');
+            BetaAdjustedReturnNormalised_l4 = chVarName(lag(BetaAdjustedReturnNormalised,4),'BetaAdjustedReturnNormalised','BetaAdjustedReturnNormalised_l4');
+
             %trading volume
-            AverageVolume25Day = trailingFunFinTS(@mean,this.DailyFinTS.Volume,25,'AverageVolume_25Day');
-            AverageVolume250Day = trailingFunFinTS(@mean,this.DailyFinTS.Volume,250,'AverageVolume_250Day');
+            AverageVolume25Day = trailingFunpTS(this.DailypTS.Volume,@mean,25,'AverageVolume_25Day');
+            AverageVolume250Day = trailingFunpTS(this.DailypTS.Volume,@mean,250,'AverageVolume_25Day');
             
-            Indicator_AverageVolume = AverageVolume25Day((end-length(AverageVolume250Day)+1):end) ./ fts2mat(AverageVolume250Day);
-            Indicator_AverageVolume = chfield(Indicator_AverageVolume,'AverageVolume_25Day','Indicator_AverageVolume');
+            Indicator_AverageVolume = AverageVolume25Day ./ AverageVolume250Day;
+            Indicator_AverageVolume = Indicator_AverageVolume.chVarName('AverageVolume_25Day','Indicator_AverageVolume');
             
             %daily trading band
-            Indicator_DailyBand = (fts2mat(this.DailyFinTS.High) - fts2mat(this.DailyFinTS.Low)) ./ this.DailyFinTS.Open;
-            Indicator_DailyBand = chfield(Indicator_DailyBand,'Open','Indicator_DailyBand');
+            Indicator_DailyBand = (this.DailypTS.High - this.DailypTS.Low) ./ this.DailypTS.Open;
+            Indicator_DailyBand = Indicator_DailyBand.chVarName('High','Indicator_DailyBand');
 
-
-            %normalised return
-            BetaAdjustedReturnNormalised = BetaAdjustedReturn.BetaAdjustedReturn((end-length(Std250Day)+1):end) ./ fts2mat(Std250Day);
-            BetaAdjustedReturnNormalised = chfield(BetaAdjustedReturnNormalised,'BetaAdjustedReturn','BetaAdjustedReturnNormalised');
-            
-            BetaAdjustedReturnNormalised_l1 = chfield(lagts(BetaAdjustedReturnNormalised,1),'BetaAdjustedReturnNormalised','BetaAdjustedReturnNormalised_l1');
-            BetaAdjustedReturnNormalised_l2 = chfield(lagts(BetaAdjustedReturnNormalised,2),'BetaAdjustedReturnNormalised','BetaAdjustedReturnNormalised_l2');
-            BetaAdjustedReturnNormalised_l3 = chfield(lagts(BetaAdjustedReturnNormalised,3),'BetaAdjustedReturnNormalised','BetaAdjustedReturnNormalised_l3');
 
             %merge
-            this.DailyFinTSIndicator = merge(Beta,...
+            this.DailypTSIndicator = combineTS(Beta,...
                                     BetaAdjustedReturn,...
                                     BetaAdjustedReturnNormalised,...
+                                    Std25Day,...
                                     Std250Day,...
                                     Indicator_Std,...
                                     Indicator_AverageVolume,...
@@ -141,9 +140,9 @@ classdef Stock < handle
                                     BetaAdjustedReturnNormalised_l1,...
                                     BetaAdjustedReturnNormalised_l2,...
                                     BetaAdjustedReturnNormalised_l3,...
-                                    'SortColumns',false);
+                                    BetaAdjustedReturnNormalised_l4);
                                 
-            this.DailyFinTSIndicator.desc = this.ticker;
+            this.DailypTSIndicator.Name = this.ticker;
             
         end
         
@@ -176,30 +175,39 @@ classdef Stock < handle
         
         function trainedClassifier = trainClassifier(this, useDataUpToDate)
 
+            useDataUpToDate = datenum(useDataUpToDate);
             
-            range = [datestr(datenum(year(useDataUpToDate)-2,month(useDataUpToDate),day(useDataUpToDate))),...
-                                                            '::',datestr(useDataUpToDate)];
                                                         
-            subIndicators = this.DailyFinTSIndicator(range);
+            subIndicators = this.DailypTSIndicator(this.DailypTSIndicator.dates <= useDataUpToDate);
 
-            ReturnCategories = cell(length(subIndicators.BetaAdjustedReturnNormalised),1);
+%             ReturnCategories = cell(length(subIndicators.BetaAdjustedReturnNormalised),1);
+% 
+%             barn = fts2mat(subIndicators.BetaAdjustedReturnNormalised);
+%             ReturnCategories( barn >= 0)    = {'positive'};
+%             ReturnCategories( barn < 0)     = {'negative'};
+%             ReturnCategories( barn > 0.5)   = {'very positive'};
+%             ReturnCategories( barn < -0.5)  = {'very negative'};
+% 
+%             ReturnCategories = categorical(ReturnCategories);    
+% 
 
-            barn = fts2mat(subIndicators.BetaAdjustedReturnNormalised);
-            ReturnCategories( barn >= 0)    = {'positive'};
-            ReturnCategories( barn < 0)     = {'negative'};
-            ReturnCategories( barn > 0.5)   = {'very positive'};
-            ReturnCategories( barn < -0.5)  = {'very negative'};
-
-            ReturnCategories = categorical(ReturnCategories);    
-
-
-            predictors = fts2mat(subIndicators(1:end-1));
-            predictor_names = fieldnames(subIndicators);
-            predictor_names = predictor_names(4:end);
-            response = ReturnCategories(2:end);
+            predictor_names = varnames(subIndicators);
+            predictors = pt2Mat(subIndicators);
+            predictors = predictors(1:end-1,:);
             
-            response = fts2mat(subIndicators.BetaAdjustedReturnNormalised(2:end));
+            response = pt2Mat(subIndicators.BetaAdjustedReturnNormalised);
+            response = response(2:end);
+            
+            %filter out where predictors or responses are NaN
+            isN = isnan(response) | any(isnan(predictors),2);
+            
+            disp([this.ticker ': Filter responses and predictors for NaNs.',sprintf('\n'),...
+                repmat(' ',1,length(this.ticker)) '  Only  ' num2str(length(response)-sum(isN)) ' / ' num2str(length(response)) ' valid data points.']);
 
+            response = response(~isN);
+            predictors = predictors(~isN,:);
+            
+            
             % Train a classifier
             %trainedClassifier = fitctree(predictors, response, 'PredictorNames', predictor_names, 'ResponseName', 'ReturnCategories', 'ClassNames', categorical({'negative' 'positive' 'very negative' 'very positive'}), 'SplitCriterion', 'deviance', 'MaxNumSplits', 50, 'Surrogate', 'off');
             trainedClassifier = fitrtree(predictors, response, 'PredictorNames', predictor_names, 'ResponseName', 'BetaAdjustedReturnNormalised', 'MaxNumSplits', 50, 'Surrogate', 'off');
@@ -209,11 +217,11 @@ classdef Stock < handle
         
         function [pReturn,pBetaAdjustedReturnNormalised] = predict(this,mydate)
                         
-            predictors = fts2mat(this.DailyFinTSIndicator(datestr(mydate)));
+            predictors = pt2Mat(this.DailypTSIndicator.dateref(mydate));
             pBetaAdjustedReturnNormalised = this.trainedClassifier.predict(predictors);
             
             %Assumes Market Return = 0
-            pReturn = pBetaAdjustedReturnNormalised .* fts2mat(this.DailyFinTSIndicator(datestr(mydate)).Std_250Day);
+            pReturn = pBetaAdjustedReturnNormalised .* pt2Mat(dateref(this.DailypTSIndicator.Std_25Day,mydate));
                         
         end
         

@@ -4,14 +4,18 @@ startdate = datenum('2015-1-2');
 enddate = datenum('2016-1-30');
 
 
-range = [datestr(startdate),'::',datestr(enddate)];
-subIndicators = DAX.DailyFinTSIndicator(range);
-daterange = subIndicators.dates;
+Returnspts = arrayfun(@(MyS) daterange(MyS.DailypTS.Return,startdate,enddate), MyStocks,'UniformOutput',false);
+Returnspts{end+1} = daterange(DAX.DailypTS.Return,startdate,enddate);
+Returnspts_dates = cellfun(@(pts) pts.dates, Returnspts,'UniformOutput',false);
+Returnspts_dates = cat(2,Returnspts_dates{:});
+daterange = Returnspts_dates(:,1);
 
-ReturnFinTS = arrayfun(@(MyS) MyS.DailyFinTS.Return, MyStocks,'UniformOutput',false);
-ReturnFinTS = [ReturnFinTS{:},DAX.DailyFinTS.Return];
+%All Dates equal?
+all(all(Returnspts_dates == repmat(daterange,1,30)))
 
-Returns = fts2mat(ReturnFinTS(datestr(daterange)));
+
+Returns = cellfun(@(pts) pt2Mat(pts.Return), Returnspts,'UniformOutput',false);
+Returns = cat(2,Returns{:});
 
 %Investments
 Investments1 = zeros(length(daterange),length(MyStocks)+1);
@@ -35,26 +39,42 @@ for i = 1:length(daterange)
 
     %Cov Matrix
     ReturnsForCov = zeros(250,length(MyStocks)+1);
-    last250days = DAX.DailyFinTS.dates;
+    last250days = DAX.DailypTS.dates;
     last250days = last250days(last250days <= mydate);
     last250days = last250days(end-249:end);
 
-    ReturnsForCov = fts2mat(ReturnFinTS(datestr(last250days)));
+    ReturnsForCov = arrayfun(@(MyS) dateref(MyS.DailypTS.Return,last250days), MyStocks,'UniformOutput',false);
+    ReturnsForCov{end+1} = dateref(DAX.DailypTS.Return,last250days);
+    ReturnsForCov = cellfun(@(pts) pt2Mat(pts.Return), ReturnsForCov,'UniformOutput',false);
+    ReturnsForCov = cat(2,ReturnsForCov{:});
 
     %Setup portfolio optimisation
     p = Portfolio('assetmean', returnPredictions, 'assetcovar', cov(ReturnsForCov), ...
-    'lowerbound', -1, 'upperbound',1,'lowerbudget',0.5,'upperbudget',1);
+    'lowerbound', -1, 'upperbound',1,'lowerbudget',0.9,'upperbudget',1.1);
+
+    %when return prediction positive, go long
+    p.LowerBound(returnPredictions > 0) = 0
+    returnPredictions > 0
 
     Investments1(i,:) = p.estimateFrontierByRisk(0.00);
-    Investments2(i,:) = p.estimateFrontierByRisk(0.01);
+    %Investments3(i,:) = p.estimateFrontierByReturn(0.005);
+
+    %find low allocations
+    p.LowerBound(abs(Investments1(i,:)) < 0.05) = 0;
+    p.UpperBound(abs(Investments1(i,:)) < 0.05) = 0;
+    
+    Investments2(i,:) = p.estimateFrontierByRisk(0.00);
+    
+
     
     InvReturn1(i) = Investments1(i,:) * Returns(i+1,:)';
     InvReturn2(i) = Investments2(i,:) * Returns(i+1,:)';
-    InvReturn3(i) = Investments3(i,:) * Returns(i+1,:)';
+    %InvReturn3(i) = Investments3(i,:) * Returns(i+1,:)';
     
     plot(daterange(1:i),cumprod(1+InvReturn1(1:i)));
     hold on;
-    plot(daterange(1:i),cumprod(1+Returns(1:i,end)));
+    plot(daterange(1:i),cumprod(1+InvReturn2(1:i)));
+    %plot(daterange(1:i),cumprod(1+InvReturn3(1:i)));
     hold off;
     datetick(gca);
     

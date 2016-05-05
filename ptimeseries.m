@@ -10,6 +10,11 @@ classdef ptimeseries
     
     methods
         function this = ptimeseries(dates,myData,Name,frequency)
+            if nargin == 0
+                %create empty
+                return;
+            end
+            
             this.Name = Name;
             this.frequency = frequency;
             
@@ -75,9 +80,21 @@ classdef ptimeseries
             this.myData = this.myData(ids,:);
         end
         
+        function this = daterange(this,startdate,enddate)
+            this = this.dateref(this.myData.dates(this.myData.dates >= datenum(startdate) & this.myData.dates <= datenum(enddate)));
+        end
+        
         function fn = fieldnames(this)
             fn = builtin('fieldnames',this);
             fn = cat(1,fn,fieldnames(this.myData));
+        end
+        
+        function vn = varnames(this)
+            vn = this.myData.Properties.VariableNames(3:end);
+        end
+        
+        function this = chVarName(this,old,new)
+            this.myData.Properties.VariableNames{strcmp(this.myData.Properties.VariableNames,old)} = new;
         end
         
         function this = lag(this,l)
@@ -94,7 +111,7 @@ classdef ptimeseries
             
             %dvide
             for i = 3:length(A.myData.Properties.VariableNames)
-                A.myData.(A.myData.Properties.VariableNames{i}) = A.myData.(A.myData.Properties.VariableNames{i}) ./ B.myData.(A.myData.Properties.VariableNames{i});
+                A.myData.(A.myData.Properties.VariableNames{i}) = A.myData.(A.myData.Properties.VariableNames{i}) ./ B.myData.(B.myData.Properties.VariableNames{i});
             end
         end
         
@@ -110,7 +127,7 @@ classdef ptimeseries
                 end
                 
                 for i = 3:length(A.myData.Properties.VariableNames)
-                    A.myData.(A.myData.Properties.VariableNames{i}) = A.myData.(A.myData.Properties.VariableNames{i}) - B.myData.(A.myData.Properties.VariableNames{i});
+                    A.myData.(A.myData.Properties.VariableNames{i}) = A.myData.(A.myData.Properties.VariableNames{i}) - B.myData.(B.myData.Properties.VariableNames{i});
                 end
 
             end
@@ -133,12 +150,14 @@ classdef ptimeseries
 
             end
         end
-        
-        function this = chfield(this,old,new)
-            this.myData.Properties.VariableNames{strcmp(this.myData.Properties.VariableNames,old)} = new;
-        end
-        
-        function A = combineTS(A,B)
+
+        function A = combineTS(A,B,varargin)
+            
+            %check if more than 2
+            if nargin > 2
+                B = combineTS(B,varargin{:});
+            end
+            
             %check if same dates
             if ~all(A.myData.dates == B.myData.dates)
                 error('ptimeseries::combineTS dates not equal');
@@ -183,14 +202,30 @@ classdef ptimeseries
             end
             
             %calculate statistic
-            for i = interval:length(A)
-                A.myData(i,3:end)= num2cell(fun(pt2Mat(A.subsref(substruct('()',{(i-interval+1:i)}))),...
-                                        pt2Mat(B.subsref(substruct('()',{(i-interval+1:i)})))));
+            newData = nan(length(A),size(A.myData,2)-2);
+            parfor i = interval:length(A)
+                newData(i,:)= fun(pt2Mat(A.subsref(substruct('()',{(i-interval+1:i)}))),...
+                                        pt2Mat(B.subsref(substruct('()',{(i-interval+1:i)}))));
             end
             
-            %first interval-1 entries are nan
-            A.myData(1:interval-1,3:end) = num2cell(nan(size(A.myData(1:interval-1,3:end))));
+            %first interval-1 entries stay nan
+            A.myData(:,3:end) = num2cell(newData);
 
+            %change name
+            A.myData.Properties.VariableNames{3:end} = name;
+
+        end
+        
+        function A = trailingFunpTS(A,fun,interval,name)
+        
+
+            function c = fun2(a,~)
+                c = fun(a);
+            end
+            
+            %fun cuntion
+            A = trailingFunCombineFinTS(A,A,@fun2,interval,name);
+            
             %change name
             A.myData.Properties.VariableNames{3:end} = name;
 
@@ -198,6 +233,12 @@ classdef ptimeseries
         
         function M = pt2Mat(this)
             M = table2array(this.myData(:,3:end));
+        end
+        
+        function plot(this,varargin)
+            
+            plot(this.myData.dates,pt2Mat(this))
+            datetick(gca);
         end
     end
     

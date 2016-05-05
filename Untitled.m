@@ -29,14 +29,14 @@ nStocks = length(MyStocks);
 %Reduce time points
 DAX.convertYahooDailyData2timeseries();
 
-
-for i = 1:nStocks
-    MyStocks(i).reduceNoVolumeDaysFromYahooDailyData();
-    MyStocks(i).convertYahooDailyData2timeseries(); 
-end
-
   
-MyStocks(1).calculateIndicators(DAX.DailypTS)
+tic
+parfor i = 1:nStocks
+    MyStocks(i).reduceNoVolumeDaysFromYahooDailyData();
+    MyStocks(i).convertYahooDailyData2timeseries();
+    MyStocks(i).calculateIndicators(DAX.DailypTS)
+end
+toc
     
     
 
@@ -45,4 +45,4 @@ for i = 1:nStocks
     MyStocks(i).trainClassifier(datenum('2014-12-31'));
 end
 
-
+save('myData.mat')

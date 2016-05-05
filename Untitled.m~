@@ -16,25 +16,30 @@ end
 
 %Remove young stocks from sample
 MyStocks(30) = [];
-nStocks = length(MyStocks);
 
 %First Entry is Dax
 DAX = MyStocks(1);
 
-%Reduce time points
-dates = datenum(DAX.YahooDailyData.Date,'yyyy-mm-dd');
-dates = dates(DAX.YahooDailyData.Volume > 0);
-dates = dates(dates >= startDate);
+%Remove DAX
+MyStocks = MyStocks(2:end);
+nStocks = length(MyStocks);
 
+
+
+%Reduce time points
+DAX.convertYahooDailyData2timeseries();
+
+
+tic
 for i = 1:nStocks
-    MyStocks(i).reduceDatesOfYahooDailyData(dates);
-    MyStocks(i).convertYahooDailyData2fints();
-    
-    MyStocks(i).calculateIndicators(DAX)
-    
+    MyStocks(i).reduceNoVolumeDaysFromYahooDailyData();
+    MyStocks(i).convertYahooDailyData2timeseries();
+    MyStocks(i).calculateIndicators(DAX.DailypTS)
 end
 
-
+  
+    
+    
 
 %Train models
 for i = 1:nStocks
